@@ -3,18 +3,23 @@ import re
 labelpattern = re.compile(r".*:")
 stmtpattern = re.compile(r"    .*")
 
+variables = {
+        "ENV": None,
+}
+
 functions = {
         "cp": (1, lambda x: [x, x]),
         "out": (1, lambda x: print(x)),
-        "call": (1, lambda x: x.execute())
+        "call": (1, lambda x: x.execute(env=variables["ENV"]))
 }
 
 class Function:
-    def __init__(self, source):
+    def __init__(self, source, machine):
         self.source = source
-    
-    def execute(self, machine, env={}):
-        machine.execute(self.source, env)
+        self.machine = machine
+
+    def execute(self, env={}):
+        self.machine.execute(self.source, env)
 
 class Machine:
     def __init__(self):
@@ -24,10 +29,12 @@ class Machine:
         if ins in functions.keys():
             argnum = functions[ins][0]
             args = []
-            while argnum != 0:
+            for x in range(argnum):
                 args.append(self.stack.pop())
-                argnum -= 1
-            self.stack += functions[ins][1](*args)
+            x = functions[ins][1](*args)
+            # print(f"{ins}: {args}")
+            if x != None:
+                self.stack += list(x)
 
         elif ins in env.keys():
             self.stack.append(env[ins])
@@ -50,14 +57,15 @@ def parsenames(doc):
             ans[curref].append(line[4:])
     return ans
 
-def makeEnv(c):
+def makeEnv(c, m):
     ans = {}
     for key in c:
-        ans[key] = Function(c[key])
+        ans[key] = Function(c[key], m)
+    variables["ENV"] = ans
     return ans
 
 if __name__ == "__main__":
     with open("test.vm") as f:
         m = Machine()
-        env = makeEnv(parsenames(f.read()))
-        env['_start'].execute(m, env)
+        env = makeEnv(parsenames(f.read()), m)
+        env['_start'].execute(env=env)
