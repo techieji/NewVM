@@ -1,0 +1,7 @@
+function:
+    cp
+    out
+
+_start:
+    1
+    out
