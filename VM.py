@@ -1,16 +1,37 @@
 import re
+import sys
+from pprint import pprint
 
 labelpattern = re.compile(r".*:")
 stmtpattern = re.compile(r"    .*")
 
 variables = {
         "ENV": None,
+        "STACK": None
 }
 
+def setvar(varname, value):
+    variables[varname] = value
+
 functions = {
+        "int": (1, lambda x: int(x)),
+        "bool": (1, lambda x: bool(x)),
+        "str": (1, lambda x: str(x)),
+        "float": (1, lambda x: float(x)),
+        "pair": (2, lambda x, y: (y, x)),
+        "add": (2, lambda x, y: x + y),
+        "sub": (2, lambda x, y: y - x),
+        "dec": (1, lambda x: x - 1),
         "cp": (1, lambda x: [x, x]),
         "out": (1, lambda x: print(x)),
-        "call": (1, lambda x: x.execute(env=variables["ENV"]))
+        "inp": (0, lambda x: input()),
+        "call": (1, lambda x: x.execute(env=variables["ENV"])),
+        "swp": (2, lambda x, y: [x, y]),
+        "eq?": (2, lambda x, y: y == x),
+        "set": (2, lambda x, y: setvar(x, y)),
+        "get": (1, lambda x: variables[x]),
+        "rm": (1, lambda x: None),
+        "if": (3, lambda x, y, z: y if x else z)
 }
 
 class Function:
@@ -31,19 +52,34 @@ class Machine:
             args = []
             for x in range(argnum):
                 args.append(self.stack.pop())
+#            print(f"{ins}: {args}")
             x = functions[ins][1](*args)
-            # print(f"{ins}: {args}")
             if x != None:
-                self.stack += list(x)
+                if type(x) == list:
+                    self.stack += x
+                else:
+                    self.stack.append(x)
 
         elif ins in env.keys():
             self.stack.append(env[ins])
         else:
             self.stack.append(ins)
 
+        variables["STACK"] = tuple(self.stack)
+
+    def oldexec(self, instructions, env):
+        for ins in instructions:
+            self.doins(ins, env)
+
     def execute(self, instructions, env={}):
-        for i in instructions:
-            self.doins(i, env)
+        i = 0
+        while i < len(instructions):
+            ins = instructions[i]
+            if ins == "jmp":
+                i = self.stack.pop()
+            else:
+                self.doins(ins, env)
+                i += 1
 
 def parsenames(doc):
     ans = {}
@@ -64,8 +100,21 @@ def makeEnv(c, m):
     variables["ENV"] = ans
     return ans
 
+def runFiles(f1, *fs):
+    text = ""
+    for x in fs:
+        with open(x) as f:
+            text += f.read()
+            text += "\n"
+
+    m = Machine()
+    env = makeEnv(parsenames(text), m)
+    env['_start'].execute(env=env)
+#    print("Env: ", end="")
+#    pprint(variables["ENV"])
+#    print(f"_start: {variables['ENV']['_start'].source}")
+#    print(f"Stack at end: {variables['STACK']}")
+
 if __name__ == "__main__":
-    with open("test.vm") as f:
-        m = Machine()
-        env = makeEnv(parsenames(f.read()), m)
-        env['_start'].execute(env=env)
+    args = sys.argv
+    runFiles(*args)

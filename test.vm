@@ -1,8 +1,29 @@
-function:
-    cp
-    out
+set_i:
+    5
+    int
+    i
+    set
+
+dec_i:
+    i
+    get
+    dec
+    i
+    set
 
 _start:
+    set_i
+    i
+    get
+    out
+    dec_i
+    i
+    get
+    0
+    eq
     1
-    function
-    call
+    28
+    if
+    jmp
+    Hello!
+    out
